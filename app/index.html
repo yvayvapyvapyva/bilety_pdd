@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Билеты ПДД 2026</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="app">
+
+  <section id="screen-tickets" class="screen">
+    <h1 class="title">Билеты ПДД 2026</h1>
+    <p class="subtitle">Категория B · экзаменационные билеты</p>
+    <p class="subtitle" id="loading-note">Загрузка…</p>
+    <div class="ticket-grid" id="ticket-grid"></div>
+  </section>
+
+  <section id="screen-quiz" class="screen hidden">
+    <header class="quiz-header">
+      <button id="btn-back" class="icon-btn">←</button>
+      <div class="quiz-meta">
+        <div id="quiz-title"></div>
+        <span id="quiz-counter"></span>
+      </div>
+    </header>
+    <div class="progress"><div id="quiz-progress" class="progress-fill"></div></div>
+    <div class="quiz-body">
+      <div id="quiz-image-wrap" class="quiz-image-wrap hidden"></div>
+      <div id="quiz-question"></div>
+      <div id="quiz-answers"></div>
+      <div id="quiz-tip" class="quiz-tip hidden"></div>
+    </div>
+    <footer class="quiz-footer">
+      <button id="btn-next" class="primary hidden">Далее ▶</button>
+    </footer>
+  </section>
+
+  <section id="screen-result" class="screen hidden">
+    <div id="result-card" class="result-card"></div>
+  </section>
+
+</div>
+<script src="app.js"></script>
+</body>
+</html>

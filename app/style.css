@@ -222,6 +222,38 @@ body {
 }
 .quiz-tip.comment-text { color: #ffffff; }
 
+.comlinks { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
+.comlink {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 10px;
+  width: 100%;
+  padding: 11px 14px;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: #fff;
+  border: 2px solid #000;
+  border-radius: 12px;
+  box-shadow: 3px 3px 0 #000;
+  cursor: pointer;
+  transition: transform 0.08s, box-shadow 0.12s;
+}
+.comlink:hover { filter: brightness(1.08); }
+.comlink:active { transform: translate(3px, 3px); box-shadow: none; }
+.comlink.youtube { background: #c4302b; }
+.comlink.instagram {
+  background: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%);
+}
+.comlink.link {
+  color: var(--text);
+  background: var(--card);
+  border-color: var(--border);
+  box-shadow: none;
+}
+.comlink-play { font-size: 12px; }
+
 .comment-btn {
   display: block;
   width: fit-content;

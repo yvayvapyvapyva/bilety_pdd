@@ -182,6 +182,7 @@ button.del:hover { background: rgba(248, 113, 113, 0.12); }
 button.del.hidden { display: none; }
 .status { margin-top: 8px; font-size: 13px; color: var(--ok); min-height: 18px; }
 .status.err { color: #f87171; }
+.hint { margin-top: 6px; font-size: 12px; color: var(--muted); }
 #card-list { margin-top: 4px; }
 
 button:focus-visible, a:focus-visible {
@@ -248,11 +249,13 @@ function ticketsRow(stats) {
     num.textContent = i;
     b.append(num);
 
-    const c = stats[i] || 0;
-    if (c > 0) {
+    const c = stats[i] || {};
+    if (c.comments > 0) {
       const cnt = document.createElement("span");
       cnt.className = "ticket-count";
-      cnt.textContent = `${c} с комментарием`;
+      cnt.textContent =
+        c.comments + " с комментарием" +
+        (c.videos > 0 ? ` (${c.videos} с видео)` : "");
       b.append(cnt);
     }
     wrap.appendChild(b);
@@ -287,6 +290,10 @@ function dataUri(base64) {
   else if (base64.startsWith("iVBOR")) mime = "image/png";
   else if (base64.startsWith("R0lG")) mime = "image/gif";
   return `data:${mime};base64,${base64}`;
+}
+
+function cleanLinks(text) {
+  return (text || "").replace(/(https?:\/\/[^\s|]+)\s*\|\s*[^\n]*/gi, "$1");
 }
 
 function answersHtml(q) {
@@ -343,7 +350,11 @@ function renderCards() {
 
     const ta = document.createElement("textarea");
     ta.placeholder = "Текст комментария…";
-    ta.value = q.comment || "";
+    ta.value = cleanLinks(q.comment);
+
+    const hint = document.createElement("div");
+    hint.className = "hint";
+    hint.textContent = "Рядом с комментарием появятся кнопки для ссылок на YouTube/Instagram";
 
     const save = document.createElement("button");
     save.className = "save";
@@ -361,7 +372,7 @@ function renderCards() {
     const editor = document.createElement("div");
     editor.className = "editor";
     editor.hidden = !q.comment;
-    editor.append(ta, save, del, st);
+    editor.append(ta, hint, save, del, st);
     card.appendChild(editor);
 
     list.appendChild(card);
@@ -370,6 +381,8 @@ function renderCards() {
 }
 
 async function saveComment(q, ta, btn, card) {
+  const value = cleanLinks(ta.value);
+  ta.value = value;
   btn.disabled = true;
   const st = card.querySelector(".status");
   st.textContent = "";
@@ -377,11 +390,11 @@ async function saveComment(q, ta, btn, card) {
     const r = await fetch(API, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ticket: ticket, n: q.n, comment: ta.value }),
+      body: JSON.stringify({ ticket: ticket, n: q.n, comment: value }),
     });
     const d = await r.json();
     if (!r.ok || !d.ok) throw new Error((d && d.error) || "HTTP " + r.status);
-    q.comment = ta.value;
+    q.comment = value;
     updateCard(card, q);
     st.textContent = "Сохранено";
   } catch (e) {
@@ -438,7 +451,7 @@ async function init() {
     const d = await r.json();
     if (d.ok) {
       (d.stats || []).forEach((s) => {
-        stats[s.ticket] = s.comments;
+        stats[s.ticket] = { comments: s.comments, videos: s.videos || 0 };
       });
     }
   } catch (e) {

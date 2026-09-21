@@ -91,7 +91,8 @@ def _stats():
     def run(session):
         query = session.prepare(
             "SELECT ticket_number, "
-            "SUM(IF(comment IS NOT NULL AND comment != '', 1, 0)) AS comments "
+            "SUM(IF(comment IS NOT NULL AND comment != '', 1, 0)) AS comments, "
+            "SUM(IF(comment LIKE '%://%', 1, 0)) AS videos "
             "FROM `bilety` GROUP BY ticket_number ORDER BY ticket_number;"
         )
         rs = session.transaction().execute(query, commit_tx=True)
@@ -176,7 +177,7 @@ def handler(event, context):
             return _response(200, _ticket_payload(ticket))
 
         stats = [
-            {"ticket": int(r["ticket_number"]), "comments": int(r["comments"])}
+            {"ticket": int(r["ticket_number"]), "comments": int(r["comments"]), "videos": int(r["videos"])}
             for r in _stats()
         ]
         return _response(200, {"ok": True, "tickets": len(stats), "stats": stats})

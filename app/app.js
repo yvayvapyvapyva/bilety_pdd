@@ -88,6 +88,58 @@ function renderList() {
   window.scrollTo(0, 0);
 }
 
+function linkInfo(url) {
+  const u = url.toLowerCase();
+  if (u.includes("youtube.com") || u.includes("youtu.be"))
+    return { kind: "youtube", name: "YouTube" };
+  if (u.includes("instagram.com") || u.includes("instagr.am"))
+    return { kind: "instagram", name: "Instagram" };
+  return { kind: "link", name: "Ссылка" };
+}
+
+function parseLinks(text) {
+  const links = [];
+  const cleaned = [];
+  const re = /https?:\/\/[^\s|]+/gi;
+  let last = 0;
+  let m;
+  while ((m = re.exec(text))) {
+    cleaned.push(text.slice(last, m.index));
+    const url = m[0];
+    links.push({ url });
+    let end = m.index + m[0].length;
+    const right = text.slice(end).match(/^\s*\|\s*[^\n]*/);
+    if (right) end += right[0].length;
+    last = end;
+    re.lastIndex = end;
+  }
+  cleaned.push(text.slice(last));
+  return {
+    text: cleaned.join("").replace(/\n{2,}/g, "\n").trim(),
+    links,
+  };
+}
+
+function openCommentLink(url) {
+  const tg = window.Telegram && Telegram.WebApp;
+  if (tg && tg.openLink) {
+    tg.openLink(url, { try_instant_view: false });
+    return;
+  }
+  window.open(url, "_blank", "noopener");
+}
+
+function buildLinkBtn(l) {
+  const info = linkInfo(l.url);
+  const b = document.createElement("button");
+  b.className = "comlink " + info.kind;
+  b.innerHTML =
+    `<span class="comlink-play">${info.kind === "link" ? "↗" : "▶"}</span>` +
+    `<span>${escapeHtml(info.name)}</span>`;
+  b.addEventListener("click", () => openCommentLink(l.url));
+  return b;
+}
+
 function buildCard(q) {
   const card = document.createElement("div");
   card.className = "qcard";
@@ -126,14 +178,24 @@ function buildCard(q) {
   card.appendChild(tip);
 
   if (q.comment) {
+    const parsed = parseLinks(q.comment);
+
     const cb = document.createElement("button");
     cb.className = "comment-btn";
-    cb.textContent = "Комментарий автоинструктора";
+    cb.textContent = parsed.links.length
+      ? "Комментарий автоинструктора (есть видео)"
+      : "Комментарий автоинструктора";
     card.appendChild(cb);
 
     const cbox = document.createElement("div");
     cbox.className = "quiz-tip comment-text hidden";
-    cbox.innerHTML = renderTip(q.comment);
+    cbox.innerHTML = renderTip(parsed.text);
+    if (parsed.links.length) {
+      const wrap = document.createElement("div");
+      wrap.className = "comlinks";
+      parsed.links.forEach((l) => wrap.appendChild(buildLinkBtn(l)));
+      cbox.appendChild(wrap);
+    }
     card.appendChild(cbox);
 
     cb.addEventListener("click", () => cbox.classList.toggle("hidden"));
@@ -203,9 +265,11 @@ function renderTicketGrid(stats) {
     const cnt = document.createElement("span");
     cnt.className = "ticket-count";
     b.append(num);
-    const c = stats[i] || 0;
-    if (c > 0) {
-      cnt.textContent = `${c} с комментарием`;
+    const c = stats[i] || {};
+    if (c.comments > 0) {
+      cnt.textContent =
+        c.comments + " с комментарием" +
+        (c.videos > 0 ? ` (${c.videos} с видео)` : "");
       b.append(cnt);
     }
     wrap.appendChild(b);
@@ -222,7 +286,7 @@ async function init() {
     const d = await r.json();
     if (d.ok) {
       (d.stats || []).forEach((s) => {
-        stats[s.ticket] = s.comments;
+        stats[s.ticket] = { comments: s.comments, videos: s.videos || 0 };
       });
     }
   } catch (e) {

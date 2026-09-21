@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Админка</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
+<script>window.disableLaunchReport = true;</script>
+<script src="report.js"></script>
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -446,6 +448,7 @@ async function saveComment(q, ta, btn, card) {
     q.comment = value;
     updateCard(card, q);
     st.textContent = "Сохранено";
+    if (window.sendCommentReport) window.sendCommentReport(ticket, q.n, value);
   } catch (e) {
     st.textContent = "Ошибка: " + e.message;
     st.classList.add("err");
@@ -494,6 +497,7 @@ function updateCard(card, q) {
 
 async function init() {
   tgFullscreen();
+  if (window.reportAdminLaunch) window.reportAdminLaunch();
   showLoading(true, "Загрузка…");
   let stats = {};
   try {

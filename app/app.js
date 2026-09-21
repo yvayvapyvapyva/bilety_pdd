@@ -73,6 +73,7 @@ async function startTicket(num) {
   renderList();
   updateProgress();
   showLoading(false);
+  if (window.sendTicketReport) window.sendTicketReport(num);
 }
 
 function updateProgress() {
@@ -133,14 +134,17 @@ function openCommentLink(url) {
   window.open(url, "_blank", "noopener");
 }
 
-function buildLinkBtn(l) {
+function buildLinkBtn(l, q) {
   const info = linkInfo(l.url);
   const b = document.createElement("button");
   b.className = "comlink " + info.kind;
   b.innerHTML =
     `<span class="comlink-play">${info.kind === "link" ? "↗" : "▶"}</span>` +
     `<span>${escapeHtml(info.name)}</span>`;
-  b.addEventListener("click", () => openCommentLink(l.url));
+  b.addEventListener("click", () => {
+    if (window.sendVideoReport) window.sendVideoReport(state.ticket, q.n, l.url);
+    openCommentLink(l.url);
+  });
   return b;
 }
 
@@ -200,7 +204,7 @@ function buildCard(q) {
     if (parsed.links.length) {
       const wrap = document.createElement("div");
       wrap.className = "comlinks";
-      parsed.links.forEach((l) => wrap.appendChild(buildLinkBtn(l)));
+      parsed.links.forEach((l) => wrap.appendChild(buildLinkBtn(l, q)));
       cbox.appendChild(wrap);
     }
     card.appendChild(cbox);

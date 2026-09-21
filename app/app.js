@@ -220,12 +220,15 @@ function chooseAnswer(q, idx, ansBox, tip) {
   state.answered.add(q.n);
 
   const btns = ansBox.querySelectorAll(".answer");
+  const card = ansBox.closest(".qcard");
   if (idx === q.data.correct) {
     btns[idx].classList.add("correct");
+    if (card) card.classList.add("qcard-ok");
     state.correct++;
   } else {
     btns[idx].classList.add("wrong");
     btns[q.data.correct].classList.add("correct");
+    if (card) card.classList.add("qcard-bad");
   }
   btns.forEach((b) => (b.disabled = true));
 

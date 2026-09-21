@@ -141,6 +141,8 @@ body {
   margin-bottom: 14px;
   box-shadow: var(--shadow);
 }
+.qcard-ok { border-color: var(--ok); }
+.qcard-bad { border-color: var(--bad); }
 .qcard-head {
   font-size: 12px;
   font-weight: 700;

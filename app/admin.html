@@ -15,6 +15,18 @@ h1 { font-size: 22px; margin-bottom: 4px; }
 .sub { color: #6b7280; font-size: 13px; margin-bottom: 18px; }
 .section-title { font-size: 13px; font-weight: 700; color: #6b7280; margin: 16px 0 8px; text-transform: uppercase; letter-spacing: .04em; }
 .buttons { display: flex; flex-wrap: wrap; gap: 8px; }
+#ticket-buttons { display: flex; flex-direction: column; gap: 8px; }
+#ticket-buttons .btn {
+  width: 100%; min-width: 0; text-align: left;
+  padding: 12px 14px; font-size: 16px;
+}
+.ticket-header { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+.btn-back {
+  width: 42px; height: 42px; font-size: 18px; font-weight: 600;
+  border: 1px solid #d7dbe3; border-radius: 10px; background: #fff; cursor: pointer;
+}
+.btn-back:hover { background: #eef1f6; }
+.ticket-header h2 { font-size: 20px; }
 button.btn {
   min-width: 46px; padding: 10px 6px; font-size: 15px; font-weight: 600;
   border: 1px solid #d7dbe3; border-radius: 10px; background: #fff; cursor: pointer;
@@ -38,7 +50,15 @@ button.btn.active { background: #3b82f6; border-color: #3b82f6; color: #fff; }
 }
 .card-img.hidden { display: none; }
 .q-text { font-size: 15px; line-height: 1.45; color: #1c1f26; margin-bottom: 10px; }
-.answers { font-size: 14px; line-height: 1.5; color: #4b5563; margin-bottom: 12px; white-space: pre-line; }
+.answers { margin-bottom: 12px; }
+.ans {
+  padding: 8px 10px; border-radius: 8px; margin-bottom: 6px;
+  font-size: 14px; line-height: 1.4; display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  background: #fff; border: 1px solid #e3e6ec; color: #4b5563;
+}
+.ans-correct { background: #d9f3e2; border-color: #38b26c; color: #14532d; font-weight: 600; }
+.ans-wrong { background: #fdf0f0; border-color: #f0c9c9; color: #7f4b4b; }
+.ans .mark { font-weight: 700; }
 textarea {
   width: 100%; min-height: 80px; padding: 10px; font: inherit; font-size: 14px; line-height: 1.45;
   border: 1px solid #d7dbe3; border-radius: 10px; resize: vertical;
@@ -61,13 +81,21 @@ button.del.hidden { display: none; }
 </style>
 </head>
 <body>
-<h1>Комментарии к билетам</h1>
-<p class="sub">Выберите билет — ниже появятся все вопросы с картинками. У каждого вопроса свой комментарий.</p>
+<div id="screen-tickets">
+<h1>Админка</h1>
+<p class="sub">Выберите билет</p>
 
 <div class="section-title">Билет</div>
-<div class="buttons" id="ticket-buttons"></div>
+<div id="ticket-buttons"></div>
+</div>
 
+<div id="screen-ticket" hidden>
+<header class="ticket-header">
+  <button id="btn-back" class="btn-back">←</button>
+  <h2 id="ticket-title"></h2>
+</header>
 <div id="card-list"></div>
+</div>
 
 <script>
 const API = "https://functions.yandexcloud.net/d4edbj3nk4e2tporn3qk";
@@ -77,6 +105,11 @@ const $$ = (sel) => [...document.querySelectorAll(sel)];
 
 let ticket = null;
 let questions = [];
+
+function showScreen(name) {
+  $("#screen-tickets").hidden = name !== "tickets";
+  $("#screen-ticket").hidden = name !== "ticket";
+}
 
 function ticketsRow() {
   const wrap = $("#ticket-buttons");
@@ -93,8 +126,10 @@ function ticketsRow() {
 async function loadTicket(num) {
   $$("#ticket-buttons .btn").forEach((b) =>
     b.classList.toggle("active", Number(b.textContent) === num));
+  $("#ticket-title").textContent = "Билет " + num;
   const list = $("#card-list");
   list.innerHTML = '<p class="sub">Загрузка…</p>';
+  showScreen("ticket");
   try {
     const r = await fetch(`${API}?ticket=${num}`);
     if (!r.ok) throw new Error("HTTP " + r.status);
@@ -108,6 +143,8 @@ async function loadTicket(num) {
   }
 }
 
+$("#btn-back").addEventListener("click", () => showScreen("tickets"));
+
 function dataUri(base64) {
   let mime = "image/jpeg";
   if (base64.startsWith("UklGR")) mime = "image/webp";
@@ -116,8 +153,20 @@ function dataUri(base64) {
   return `data:${mime};base64,${base64}`;
 }
 
-function answersHtml(a) {
-  return a.map((t, i) => `${i + 1}. ${t}`).join("\n");
+function answersHtml(q) {
+  const wrap = document.createElement("div");
+  wrap.className = "answers";
+  q.data.a.forEach((t, i) => {
+    const d = document.createElement("div");
+    d.className = "ans " + (i === q.data.correct ? "ans-correct" : "ans-wrong");
+    d.textContent = `${i + 1}. ${t}`;
+    const mark = document.createElement("span");
+    mark.className = "mark";
+    mark.textContent = i === q.data.correct ? "✓" : "✗";
+    d.appendChild(mark);
+    wrap.appendChild(d);
+  });
+  return wrap;
 }
 
 function renderCards() {
@@ -148,9 +197,7 @@ function renderCards() {
     qt.textContent = q.data.q;
     card.appendChild(qt);
 
-    const ans = document.createElement("div");
-    ans.className = "answers";
-    ans.textContent = answersHtml(q.data.a);
+    const ans = answersHtml(q);
     card.appendChild(ans);
 
     const ta = document.createElement("textarea");

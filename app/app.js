@@ -77,9 +77,12 @@ async function startTicket(num) {
 
 function updateProgress() {
   const n = state.questions.length;
-  $("#quiz-title").textContent = `Билет ${state.ticket}`;
-  $("#quiz-counter").textContent = `Отвечено ${state.answered.size}/${n}`;
-  $("#quiz-progress").style.width = `${(state.answered.size / n) * 100}%`;
+  const answered = state.answered.size;
+  $("#quiz-ticket").textContent = "Билет " + state.ticket;
+  $("#quiz-answered").textContent = `Отвечено ${answered}/${n}`;
+  $("#quiz-correct").textContent = `Верно ${state.correct}`;
+  $("#quiz-wrong").textContent = `Неверно ${answered - state.correct}`;
+  $("#quiz-progress").style.width = `${(answered / n) * 100}%`;
 }
 
 function renderList() {
@@ -190,7 +193,10 @@ function buildCard(q) {
 
     const cbox = document.createElement("div");
     cbox.className = "quiz-tip comment-text hidden";
-    cbox.innerHTML = renderTip(parsed.text);
+    const body = document.createElement("div");
+    body.className = "comment-body";
+    body.innerHTML = renderTip(parsed.text);
+    cbox.appendChild(body);
     if (parsed.links.length) {
       const wrap = document.createElement("div");
       wrap.className = "comlinks";

@@ -36,6 +36,7 @@ function tgFullscreen() {
     Telegram.WebApp.expand();
     Telegram.WebApp.setHeaderColor("#0b0e17");
     Telegram.WebApp.setBackgroundColor("#0b0e17");
+    if (Telegram.WebApp.disableVerticalSwipes) Telegram.WebApp.disableVerticalSwipes();
     if (Telegram.WebApp.requestFullscreen) Telegram.WebApp.requestFullscreen();
   } catch (e) {}
 }

@@ -30,7 +30,7 @@ body {
     var(--bg);
   background-attachment: fixed;
   color: var(--text);
-  max-width: 760px; margin: 0 auto; padding: 24px 20px 32px;
+  max-width: 760px; margin: 0 auto; padding: calc(env(safe-area-inset-top, 0px) + 24px) 20px 32px;
 }
 
 h1 {
@@ -220,6 +220,7 @@ function tgFullscreen() {
     Telegram.WebApp.expand();
     Telegram.WebApp.setHeaderColor("#0b0e17");
     Telegram.WebApp.setBackgroundColor("#0b0e17");
+    if (Telegram.WebApp.disableVerticalSwipes) Telegram.WebApp.disableVerticalSwipes();
     if (Telegram.WebApp.requestFullscreen) Telegram.WebApp.requestFullscreen();
   } catch (e) {}
 }

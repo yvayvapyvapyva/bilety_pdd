@@ -37,7 +37,7 @@ body {
 
 #app { display: flex; flex-direction: column; min-height: 100dvh; }
 
-.screen { display: flex; flex-direction: column; padding: 24px 20px 32px; flex: 1; }
+.screen { display: flex; flex-direction: column; padding: calc(env(safe-area-inset-top, 0px) + 24px) 20px 32px; flex: 1; }
 .hidden { display: none !important; }
 
 /* шапка выбора билета */

@@ -9,6 +9,7 @@ import ydb.credentials
 TABLE_PATH = os.environ["YDB_DATABASE"].rstrip("/") + "/bilety"
 
 _POOL = None
+_MIGRATED = False
 
 
 def _get_sa_token() -> dict:
@@ -39,12 +40,26 @@ def _pool():
     return _POOL
 
 
+def _ensure_comment():
+    global _MIGRATED
+    if _MIGRATED:
+        return
+
+    def run(session):
+        desc = session.describe_table(TABLE_PATH)
+        cols = {c.name for c in getattr(desc, "columns", [])}
+        if "comment" not in cols:
+            session.execute_scheme(f"ALTER TABLE `{TABLE_PATH}` ADD COLUMN comment Utf8;")
+
+    _pool().retry_operation_sync(run)
+    _MIGRATED = True
+
+
 def _select_ticket(ticket: int):
     def run(session):
         query = session.prepare(
             "DECLARE $ticket AS Int32; "
-            "SELECT ticket_number, question_number, data, "
-            "image IS NOT NULL AS has_image FROM `bilety` "
+            "SELECT ticket_number, question_number, data, image, comment FROM `bilety` "
             "WHERE ticket_number = $ticket "
             "ORDER BY ticket_number, question_number;"
         )
@@ -55,21 +70,21 @@ def _select_ticket(ticket: int):
     return _pool().retry_operation_sync(run)
 
 
-def _select_image(ticket: int, number: int):
+def _update_comment(ticket: int, number: int, comment):
     def run(session):
         query = session.prepare(
             "DECLARE $ticket AS Int32; "
             "DECLARE $number AS Int32; "
-            "SELECT image FROM `bilety` "
+            "DECLARE $comment AS Utf8; "
+            "UPDATE `bilety` SET comment = $comment "
             "WHERE ticket_number = $ticket AND question_number = $number;"
         )
-        rs = session.transaction().execute(
+        session.transaction().execute(
             query,
-            parameters={"$ticket": ticket, "$number": number},
+            parameters={"$ticket": ticket, "$number": number, "$comment": comment},
             commit_tx=True,
         )
-        return rs[0].rows
-    return _pool().retry_operation_sync(run)
+    _pool().retry_operation_sync(run)
 
 
 def _response(status, payload, content_type="application/json; charset=utf-8"):
@@ -79,24 +94,11 @@ def _response(status, payload, content_type="application/json; charset=utf-8"):
         "headers": {
             "Content-Type": content_type,
             "Access-Control-Allow-Origin": "*",
-            "Access-Control-Allow-Methods": "GET, OPTIONS",
+            "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
             "Access-Control-Allow-Headers": "Content-Type",
         },
         "body": body,
         "isBase64Encoded": False,
-    }
-
-
-def _image_response(data: bytes):
-    return {
-        "statusCode": 200,
-        "headers": {
-            "Content-Type": "image/jpeg",
-            "Access-Control-Allow-Origin": "*",
-            "Cache-Control": "public, max-age=3600",
-        },
-        "body": base64.b64encode(data).decode("ascii"),
-        "isBase64Encoded": True,
     }
 
 
@@ -106,11 +108,14 @@ def _ticket_payload(ticket: int):
         raise KeyError(f"Билет {ticket} не найден")
     questions = []
     for row in rows:
+        img = row.get("image")
+        cm = row.get("comment")
         questions.append(
             {
                 "n": row["question_number"],
                 "data": json.loads(row["data"]),
-                "has_image": bool(row["has_image"]),
+                "image": base64.b64encode(img).decode("ascii") if img else None,
+                "comment": cm or None,
             }
         )
     return {"ok": True, "ticket": ticket, "questions": questions}
@@ -125,21 +130,34 @@ def _int_or_none(value, name):
 
 def handler(event, context):
     try:
+        _ensure_comment()
         method = (event.get("httpMethod") or event.get("method") or "GET").upper()
         if method == "OPTIONS":
             return _response(200, {"ok": True})
+
+        body = event.get("body")
+        if not isinstance(body, dict):
+            if isinstance(body, str):
+                try:
+                    body = json.loads(body) if body else {}
+                except (ValueError, TypeError):
+                    body = {}
+            else:
+                body = {}
+
+        if method == "POST":
+            ticket = _int_or_none(body.get("ticket"), "ticket")
+            number = _int_or_none(body.get("n"), "n")
+            comment = body.get("comment")
+            if comment is None:
+                raise ValueError("Поле 'comment' обязательно")
+            _update_comment(ticket, number, str(comment))
+            return _response(200, {"ok": True, "ticket": ticket, "n": number, "comment": comment})
+
         if method != "GET":
             return _response(405, {"ok": False, "error": "Метод не поддерживается"})
 
         qsp = event.get("queryStringParameters") or {}
-
-        if "image" in qsp:
-            ticket = _int_or_none(qsp.get("ticket"), "ticket")
-            number = _int_or_none(qsp.get("n"), "n")
-            rows = _select_image(ticket, number)
-            if not rows or rows[0].get("image") is None:
-                return _response(404, {"ok": False, "error": "Картинка не найдена"})
-            return _image_response(rows[0]["image"])
 
         if "ticket" in qsp:
             ticket = _int_or_none(qsp["ticket"], "ticket")

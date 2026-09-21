@@ -23,6 +23,14 @@ function renderTip(tip) {
     .join("");
 }
 
+function imageDataUri(base64) {
+  let mime = "image/jpeg";
+  if (base64.startsWith("UklGR")) mime = "image/webp";
+  else if (base64.startsWith("iVBOR")) mime = "image/png";
+  else if (base64.startsWith("R0lG")) mime = "image/gif";
+  return `data:${mime};base64,${base64}`;
+}
+
 function showScreen(name) {
   $$(".screen").forEach((el) => el.classList.add("hidden"));
   $(`#screen-${name}`).classList.remove("hidden");
@@ -75,10 +83,9 @@ function renderQuestion() {
   $("#quiz-question").innerHTML = escapeHtml(q.data.q);
 
   const imgWrap = $("#quiz-image-wrap");
-  if (q.has_image) {
+  if (q.image) {
     imgWrap.classList.remove("hidden");
-    imgWrap.innerHTML =
-      `<img loading="lazy" src="${API_BASE_URL}?image=1&ticket=${state.ticket}&n=${q.n}" alt="">`;
+    imgWrap.innerHTML = `<img src="${imageDataUri(q.image)}" alt="">`;
   } else {
     imgWrap.classList.add("hidden");
     imgWrap.innerHTML = "";
@@ -86,6 +93,16 @@ function renderQuestion() {
 
   $("#quiz-tip").classList.add("hidden");
   $("#btn-next").classList.add("hidden");
+
+  const cbox = $("#quiz-comment-box");
+  cbox.classList.add("hidden");
+  if (q.comment) {
+    $("#btn-comment").classList.remove("hidden");
+    cbox.innerHTML = renderTip(q.comment);
+  } else {
+    $("#btn-comment").classList.add("hidden");
+    cbox.innerHTML = "";
+  }
 
   const box = $("#quiz-answers");
   box.innerHTML = "";
@@ -133,6 +150,11 @@ $("#btn-next").addEventListener("click", () => {
 });
 
 $("#btn-back").addEventListener("click", () => showScreen("tickets"));
+
+$("#btn-comment").addEventListener("click", () => {
+  const box = $("#quiz-comment-box");
+  box.classList.toggle("hidden");
+});
 
 function showResult() {
   const total = state.questions.length;

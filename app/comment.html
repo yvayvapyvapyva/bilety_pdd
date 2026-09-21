@@ -1,0 +1,247 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Комментарии к билетам</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+  background: #f2f4f8; color: #1c1f26;
+  max-width: 760px; margin: 0 auto; padding: 20px;
+}
+h1 { font-size: 22px; margin-bottom: 4px; }
+.sub { color: #6b7280; font-size: 13px; margin-bottom: 18px; }
+.section-title { font-size: 13px; font-weight: 700; color: #6b7280; margin: 16px 0 8px; text-transform: uppercase; letter-spacing: .04em; }
+.buttons { display: flex; flex-wrap: wrap; gap: 8px; }
+button.btn {
+  min-width: 46px; padding: 10px 6px; font-size: 15px; font-weight: 600;
+  border: 1px solid #d7dbe3; border-radius: 10px; background: #fff; cursor: pointer;
+}
+button.btn:hover { background: #eef1f6; }
+button.btn.active { background: #3b82f6; border-color: #3b82f6; color: #fff; }
+
+.card {
+  background: #fff; border: 1px solid #e3e6ec; border-radius: 14px;
+  padding: 16px; margin-top: 14px;
+}
+.card.has-c { border-color: #8b5cf6; }
+.card-head { display: flex; align-items: center; gap: 8px; font-weight: 700; margin-bottom: 10px; }
+.card-head .tag {
+  font-size: 11px; font-weight: 600; color: #8b5cf6; background: #f6f2ff;
+  border-radius: 8px; padding: 2px 8px;
+}
+.card-img {
+  display: block; max-width: 100%; max-height: 240px; margin: 0 auto 12px;
+  border: 1px solid #e3e6ec; border-radius: 10px; background: #fafbfc;
+}
+.card-img.hidden { display: none; }
+.q-text { font-size: 15px; line-height: 1.45; color: #1c1f26; margin-bottom: 10px; }
+.answers { font-size: 14px; line-height: 1.5; color: #4b5563; margin-bottom: 12px; white-space: pre-line; }
+textarea {
+  width: 100%; min-height: 80px; padding: 10px; font: inherit; font-size: 14px; line-height: 1.45;
+  border: 1px solid #d7dbe3; border-radius: 10px; resize: vertical;
+}
+button.save {
+  margin-top: 10px; padding: 10px 20px; font-size: 15px; font-weight: 600;
+  border: none; border-radius: 10px; background: #8b5cf6; color: #fff; cursor: pointer;
+}
+button.save:hover { background: #7c4aef; }
+button.save:disabled { background: #c9c2ea; cursor: default; }
+button.del {
+  margin-top: 10px; margin-left: 8px; padding: 10px 16px; font-size: 15px; font-weight: 600;
+  border: 1px solid #e04b4b; border-radius: 10px; background: #fff; color: #e04b4b; cursor: pointer;
+}
+button.del:hover { background: #fde2e2; }
+button.del.hidden { display: none; }
+.status { margin-top: 8px; font-size: 13px; color: #38b26c; min-height: 18px; }
+.status.err { color: #e04b4b; }
+#card-list { margin-top: 4px; }
+</style>
+</head>
+<body>
+<h1>Комментарии к билетам</h1>
+<p class="sub">Выберите билет — ниже появятся все вопросы с картинками. У каждого вопроса свой комментарий.</p>
+
+<div class="section-title">Билет</div>
+<div class="buttons" id="ticket-buttons"></div>
+
+<div id="card-list"></div>
+
+<script>
+const API = "https://functions.yandexcloud.net/d4edbj3nk4e2tporn3qk";
+
+const $ = (sel) => document.querySelector(sel);
+const $$ = (sel) => [...document.querySelectorAll(sel)];
+
+let ticket = null;
+let questions = [];
+
+function ticketsRow() {
+  const wrap = $("#ticket-buttons");
+  wrap.innerHTML = "";
+  for (let i = 1; i <= 40; i++) {
+    const b = document.createElement("button");
+    b.className = "btn";
+    b.textContent = i;
+    b.addEventListener("click", () => loadTicket(i));
+    wrap.appendChild(b);
+  }
+}
+
+async function loadTicket(num) {
+  $$("#ticket-buttons .btn").forEach((b) =>
+    b.classList.toggle("active", Number(b.textContent) === num));
+  const list = $("#card-list");
+  list.innerHTML = '<p class="sub">Загрузка…</p>';
+  try {
+    const r = await fetch(`${API}?ticket=${num}`);
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    const d = await r.json();
+    if (!d.ok) throw new Error(d.error || "Ошибка");
+    ticket = num;
+    questions = d.questions;
+    renderCards();
+  } catch (e) {
+    list.innerHTML = `<p class="sub" style="color:#e04b4b">Не удалось загрузить билет: ${e.message}</p>`;
+  }
+}
+
+function dataUri(base64) {
+  let mime = "image/jpeg";
+  if (base64.startsWith("UklGR")) mime = "image/webp";
+  else if (base64.startsWith("iVBOR")) mime = "image/png";
+  else if (base64.startsWith("R0lG")) mime = "image/gif";
+  return `data:${mime};base64,${base64}`;
+}
+
+function answersHtml(a) {
+  return a.map((t, i) => `${i + 1}. ${t}`).join("\n");
+}
+
+function renderCards() {
+  const list = $("#card-list");
+  list.innerHTML = "";
+  questions.forEach((q, idx) => {
+    const card = document.createElement("div");
+    card.className = "card" + (q.comment ? " has-c" : "");
+
+    const head = document.createElement("div");
+    head.className = "card-head";
+    head.textContent = "Вопрос " + q.n;
+    if (q.comment) {
+      const tag = document.createElement("span");
+      tag.className = "tag";
+      tag.textContent = "есть комментарий";
+      head.appendChild(tag);
+    }
+    card.appendChild(head);
+
+    const img = document.createElement("img");
+    img.className = "card-img" + (q.image ? "" : " hidden");
+    if (q.image) img.src = dataUri(q.image);
+    card.appendChild(img);
+
+    const qt = document.createElement("div");
+    qt.className = "q-text";
+    qt.textContent = q.data.q;
+    card.appendChild(qt);
+
+    const ans = document.createElement("div");
+    ans.className = "answers";
+    ans.textContent = answersHtml(q.data.a);
+    card.appendChild(ans);
+
+    const ta = document.createElement("textarea");
+    ta.placeholder = "Текст комментария…";
+    ta.value = q.comment || "";
+    card.appendChild(ta);
+
+    const save = document.createElement("button");
+    save.className = "save";
+    save.textContent = "Сохранить";
+    save.addEventListener("click", () => saveComment(q, ta, save, card));
+    card.appendChild(save);
+
+    const del = document.createElement("button");
+    del.className = "del" + (q.comment ? "" : " hidden");
+    del.textContent = "Удалить комментарий";
+    del.addEventListener("click", () => deleteComment(q, ta, del, card));
+    card.appendChild(del);
+
+    const st = document.createElement("div");
+    st.className = "status";
+    card.appendChild(st);
+
+    list.appendChild(card);
+  });
+  window.scrollTo(0, 0);
+}
+
+async function saveComment(q, ta, btn, card) {
+  btn.disabled = true;
+  const st = card.querySelector(".status");
+  st.textContent = "";
+  try {
+    const r = await fetch(API, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ticket: ticket, n: q.n, comment: ta.value }),
+    });
+    const d = await r.json();
+    if (!r.ok || !d.ok) throw new Error((d && d.error) || "HTTP " + r.status);
+    q.comment = ta.value;
+    updateCard(card, q);
+    st.textContent = "Сохранено";
+  } catch (e) {
+    st.textContent = "Ошибка: " + e.message;
+    st.classList.add("err");
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+async function deleteComment(q, ta, btn, card) {
+  if (!confirm("Удалить комментарий к вопросу " + q.n + "?")) return;
+  btn.disabled = true;
+  const st = card.querySelector(".status");
+  st.textContent = "";
+  try {
+    const r = await fetch(API, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ticket: ticket, n: q.n, comment: "" }),
+    });
+    const d = await r.json();
+    if (!r.ok || !d.ok) throw new Error((d && d.error) || "HTTP " + r.status);
+    q.comment = "";
+    ta.value = "";
+    updateCard(card, q);
+    st.textContent = "Комментарий удалён";
+  } catch (e) {
+    st.textContent = "Ошибка: " + e.message;
+    st.classList.add("err");
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+function updateCard(card, q) {
+  card.classList.toggle("has-c", !!q.comment);
+  const headEl = card.querySelector(".card-head");
+  const oldTag = headEl.querySelector(".tag");
+  if (oldTag) oldTag.remove();
+  if (q.comment) {
+    const tag = document.createElement("span");
+    tag.className = "tag";
+    tag.textContent = "есть комментарий";
+    headEl.appendChild(tag);
+  }
+  card.querySelector(".del").classList.toggle("hidden", !q.comment);
+}
+
+ticketsRow();
+</script>
+</body>
+</html>

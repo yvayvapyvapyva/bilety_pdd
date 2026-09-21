@@ -124,6 +124,20 @@ body {
   margin: 14px 0 8px;
 }
 
+.comment-btn {
+  display: block;
+  margin: 12px 0 0;
+  padding: 10px 14px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #fff;
+  background: #8b5cf6;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+}
+.comment-btn:hover { background: #7c4aef; }
+
 .quiz-footer { padding: 12px 0 20px; }
 
 button.primary, button.secondary {

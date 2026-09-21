@@ -405,10 +405,6 @@ function renderCards() {
     ta.placeholder = "Текст комментария…";
     ta.value = cleanLinks(q.comment);
 
-    const hint = document.createElement("div");
-    hint.className = "hint";
-    hint.textContent = "Рядом с комментарием появятся кнопки для ссылок на YouTube/Instagram";
-
     const save = document.createElement("button");
     save.className = "save";
     save.textContent = "Сохранить";
@@ -425,7 +421,7 @@ function renderCards() {
     const editor = document.createElement("div");
     editor.className = "editor";
     editor.hidden = !q.comment;
-    editor.append(ta, hint, save, del, st);
+    editor.append(ta, save, del, st);
     card.appendChild(editor);
 
     list.appendChild(card);

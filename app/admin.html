@@ -147,6 +147,18 @@ button.btn.active { background: var(--grad); border-color: transparent; color: #
 }
 .card-img.hidden { display: none; }
 .q-text { font-size: 15px; line-height: 1.45; color: var(--text); margin-bottom: 12px; }
+.q-tip {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border);
+  border-left: 4px solid #6b7287;
+  border-radius: 12px;
+  padding: 12px 14px;
+  font-size: 14px;
+  line-height: 1.45;
+  color: #c3c8d8;
+  white-space: pre-line;
+  margin-bottom: 12px;
+}
 .answers { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
 .ans {
   padding: 9px 12px; border-radius: 12px;
@@ -391,6 +403,11 @@ function renderCards() {
 
     const ans = answersHtml(q);
     card.appendChild(ans);
+
+    const tip = document.createElement("div");
+    tip.className = "q-tip";
+    tip.textContent = q.data.tip;
+    card.appendChild(tip);
 
     const addBtn = document.createElement("button");
     addBtn.className = "add-comment";

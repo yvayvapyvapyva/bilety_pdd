@@ -6,9 +6,7 @@ const $$ = (sel) => document.querySelectorAll(sel);
 const state = {
   ticket: null,
   questions: [],
-  pos: 0,
-  answered: false,
-  cur: null,
+  answered: new Set(),
   correct: 0,
 };
 
@@ -49,7 +47,6 @@ function renderTicketGrid() {
 }
 
 async function startTicket(num) {
-  $("#btn-next").classList.add("hidden");
   try {
     const r = await fetch(`${API_BASE_URL}?ticket=${num}`, { method: "GET" });
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
@@ -62,99 +59,102 @@ async function startTicket(num) {
     showScreen("tickets");
     return;
   }
-  state.pos = 0;
-  state.answered = false;
+  state.answered = new Set();
   state.correct = 0;
   showScreen("quiz");
-  renderQuestion();
+  renderList();
+  updateProgress();
 }
 
-function renderQuestion() {
-  const q = state.questions[state.pos];
-  state.answered = false;
-  state.cur = q;
-
+function updateProgress() {
+  const n = state.questions.length;
   $("#quiz-title").textContent = `Билет ${state.ticket}`;
-  $("#quiz-counter").textContent =
-    `Вопрос ${state.pos + 1}/${state.questions.length}`;
-  $("#quiz-progress").style.width =
-    `${((state.pos + 0.5) / state.questions.length) * 100}%`;
+  $("#quiz-counter").textContent = `Отвечено ${state.answered.size}/${n}`;
+  $("#quiz-progress").style.width = `${(state.answered.size / n) * 100}%`;
+}
 
-  $("#quiz-question").innerHTML = escapeHtml(q.data.q);
-
-  const imgWrap = $("#quiz-image-wrap");
-  if (q.image) {
-    imgWrap.classList.remove("hidden");
-    imgWrap.innerHTML = `<img src="${imageDataUri(q.image)}" alt="">`;
-  } else {
-    imgWrap.classList.add("hidden");
-    imgWrap.innerHTML = "";
-  }
-
-  $("#quiz-tip").classList.add("hidden");
-  $("#btn-next").classList.add("hidden");
-
-  const cbox = $("#quiz-comment-box");
-  cbox.classList.add("hidden");
-  if (q.comment) {
-    $("#btn-comment").classList.remove("hidden");
-    cbox.innerHTML = renderTip(q.comment);
-  } else {
-    $("#btn-comment").classList.add("hidden");
-    cbox.innerHTML = "";
-  }
-
-  const box = $("#quiz-answers");
-  box.innerHTML = "";
-  q.data.a.forEach((_a, i) => {
-    const btn = document.createElement("button");
-    btn.className = "answer";
-    btn.innerHTML = `<span>${escapeHtml(q.data.a[i])}</span>`;
-    btn.addEventListener("click", () => chooseAnswer(i));
-    box.appendChild(btn);
-  });
+function renderList() {
+  const list = $("#quiz-list");
+  list.innerHTML = "";
+  state.questions.forEach((q) => list.appendChild(buildCard(q)));
   window.scrollTo(0, 0);
 }
 
-function chooseAnswer(i) {
-  if (state.answered) return;
-  state.answered = true;
+function buildCard(q) {
+  const card = document.createElement("div");
+  card.className = "qcard";
 
-  const q = state.cur;
-  const btns = $$("#quiz-answers .answer");
+  const head = document.createElement("div");
+  head.className = "qcard-head";
+  head.textContent = "Вопрос " + q.n;
+  card.appendChild(head);
 
-  if (i === q.data.correct) {
-    btns[i].classList.add("correct");
-    state.correct++;
-  } else {
-    btns[i].classList.add("wrong");
-    btns[q.data.correct].classList.add("correct");
+  if (q.image) {
+    const img = document.createElement("img");
+    img.className = "qcard-img";
+    img.src = imageDataUri(q.image);
+    card.appendChild(img);
   }
 
-  const tip = $("#quiz-tip");
-  tip.innerHTML = renderTip(q.data.tip);
-  tip.classList.remove("hidden");
+  const qt = document.createElement("div");
+  qt.className = "qcard-q";
+  qt.innerHTML = escapeHtml(q.data.q);
+  card.appendChild(qt);
 
-  const last = state.pos + 1 >= state.questions.length;
-  const nxt = $("#btn-next");
-  nxt.classList.remove("hidden");
-  nxt.textContent = last ? "Показать результат" : "Далее ▶";
-  $("#quiz-progress").style.width =
-    `${((state.pos + 1) / state.questions.length) * 100}%`;
+  const tip = document.createElement("div");
+  tip.className = "quiz-tip hidden";
+  tip.innerHTML = renderTip(q.data.tip);
+
+  const ansBox = document.createElement("div");
+  ansBox.className = "answers";
+  q.data.a.forEach((_t, idx) => {
+    const b = document.createElement("button");
+    b.className = "answer";
+    b.innerHTML = `<span>${escapeHtml(q.data.a[idx])}</span>`;
+    b.addEventListener("click", () => chooseAnswer(q, idx, ansBox, tip));
+    ansBox.appendChild(b);
+  });
+  card.appendChild(ansBox);
+  card.appendChild(tip);
+
+  if (q.comment) {
+    const cb = document.createElement("button");
+    cb.className = "comment-btn";
+    cb.textContent = "Комментарий";
+    card.appendChild(cb);
+
+    const cbox = document.createElement("div");
+    cbox.className = "quiz-tip hidden";
+    cbox.innerHTML = renderTip(q.comment);
+    card.appendChild(cbox);
+
+    cb.addEventListener("click", () => cbox.classList.toggle("hidden"));
+  }
+
+  return card;
 }
 
-$("#btn-next").addEventListener("click", () => {
-  state.pos++;
-  if (state.pos >= state.questions.length) showResult();
-  else renderQuestion();
-});
+function chooseAnswer(q, idx, ansBox, tip) {
+  if (state.answered.has(q.n)) return;
+  state.answered.add(q.n);
+
+  const btns = ansBox.querySelectorAll(".answer");
+  if (idx === q.data.correct) {
+    btns[idx].classList.add("correct");
+    state.correct++;
+  } else {
+    btns[idx].classList.add("wrong");
+    btns[q.data.correct].classList.add("correct");
+  }
+  btns.forEach((b) => (b.disabled = true));
+
+  tip.classList.remove("hidden");
+  updateProgress();
+}
 
 $("#btn-back").addEventListener("click", () => showScreen("tickets"));
 
-$("#btn-comment").addEventListener("click", () => {
-  const box = $("#quiz-comment-box");
-  box.classList.toggle("hidden");
-});
+$("#btn-result").addEventListener("click", showResult);
 
 function showResult() {
   const total = state.questions.length;

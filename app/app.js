@@ -99,6 +99,10 @@ function linkInfo(url) {
     return { kind: "youtube", name: "YouTube" };
   if (u.includes("instagram.com") || u.includes("instagr.am"))
     return { kind: "instagram", name: "Instagram" };
+  if (u.includes("tiktok.com"))
+    return { kind: "tiktok", name: "TikTok" };
+  if (u.includes("rutube.ru"))
+    return { kind: "rutube", name: "Rutube" };
   return { kind: "link", name: "Ссылка" };
 }
 

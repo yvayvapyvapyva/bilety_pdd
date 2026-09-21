@@ -246,6 +246,9 @@ body {
 .comlink.instagram {
   background: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%);
 }
+.comlink.tiktok { background: #14161c; }
+.comlink.tiktok .comlink-play { color: #25f4ee; }
+.comlink.rutube { background: #d61a1f; }
 .comlink.link {
   color: var(--text);
   background: var(--card);

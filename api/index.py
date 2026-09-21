@@ -87,6 +87,18 @@ def _update_comment(ticket: int, number: int, comment):
     _pool().retry_operation_sync(run)
 
 
+def _stats():
+    def run(session):
+        query = session.prepare(
+            "SELECT ticket_number, "
+            "SUM(IF(comment IS NOT NULL AND comment != '', 1, 0)) AS comments "
+            "FROM `bilety` GROUP BY ticket_number ORDER BY ticket_number;"
+        )
+        rs = session.transaction().execute(query, commit_tx=True)
+        return rs[0].rows
+    return _pool().retry_operation_sync(run)
+
+
 def _response(status, payload, content_type="application/json; charset=utf-8"):
     body = payload if isinstance(payload, str) else json.dumps(payload, ensure_ascii=False)
     return {
@@ -163,7 +175,11 @@ def handler(event, context):
             ticket = _int_or_none(qsp["ticket"], "ticket")
             return _response(200, _ticket_payload(ticket))
 
-        return _response(200, {"ok": True, "tickets": 40})
+        stats = [
+            {"ticket": int(r["ticket_number"]), "comments": int(r["comments"])}
+            for r in _stats()
+        ]
+        return _response(200, {"ok": True, "tickets": len(stats), "stats": stats})
     except KeyError as e:
         return _response(404, {"ok": False, "error": str(e)})
     except Exception as e:

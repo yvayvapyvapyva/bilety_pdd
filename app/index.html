@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Билеты ПДД 2026</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -18,7 +19,9 @@
 
   <section id="screen-quiz" class="screen hidden">
     <header class="quiz-header">
-      <button id="btn-back" class="icon-btn">←</button>
+      <button id="btn-back" class="icon-btn" aria-label="Назад">
+      <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+    </button>
       <div class="quiz-meta">
         <div id="quiz-title"></div>
         <span id="quiz-counter"></span>
@@ -34,6 +37,11 @@
   <section id="screen-result" class="screen hidden">
     <div id="result-card" class="result-card"></div>
   </section>
+
+  <div id="loading-overlay" class="overlay" hidden>
+    <div class="spinner"></div>
+    <span>Загрузка…</span>
+  </div>
 
 </div>
 <script src="app.js"></script>

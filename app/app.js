@@ -29,24 +29,30 @@ function imageDataUri(base64) {
   return `data:${mime};base64,${base64}`;
 }
 
+function tgFullscreen() {
+  try {
+    if (!window.Telegram || !Telegram.WebApp) return;
+    Telegram.WebApp.ready();
+    Telegram.WebApp.expand();
+    Telegram.WebApp.setHeaderColor("#0b0e17");
+    Telegram.WebApp.setBackgroundColor("#0b0e17");
+    if (Telegram.WebApp.requestFullscreen) Telegram.WebApp.requestFullscreen();
+  } catch (e) {}
+}
+
+function showLoading(show, msg) {
+  const overlay = $("#loading-overlay");
+  overlay.hidden = !show;
+  if (msg) overlay.querySelector("span").textContent = msg;
+}
+
 function showScreen(name) {
   $$(".screen").forEach((el) => el.classList.add("hidden"));
   $(`#screen-${name}`).classList.remove("hidden");
 }
 
-function renderTicketGrid() {
-  const grid = $("#ticket-grid");
-  grid.innerHTML = "";
-  for (let i = 1; i <= 40; i++) {
-    const b = document.createElement("button");
-    b.className = "ticket-btn";
-    b.textContent = i;
-    b.addEventListener("click", () => startTicket(i));
-    grid.appendChild(b);
-  }
-}
-
 async function startTicket(num) {
+  showLoading(true, "Загрузка билета " + num + "…");
   try {
     const r = await fetch(`${API_BASE_URL}?ticket=${num}`, { method: "GET" });
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
@@ -55,6 +61,7 @@ async function startTicket(num) {
     state.ticket = num;
     state.questions = data.questions;
   } catch (e) {
+    showLoading(false);
     $("#loading-note").textContent = `Не удалось загрузить билет ${num}.`;
     showScreen("tickets");
     return;
@@ -64,6 +71,7 @@ async function startTicket(num) {
   showScreen("quiz");
   renderList();
   updateProgress();
+  showLoading(false);
 }
 
 function updateProgress() {
@@ -120,11 +128,11 @@ function buildCard(q) {
   if (q.comment) {
     const cb = document.createElement("button");
     cb.className = "comment-btn";
-    cb.textContent = "Комментарий";
+    cb.textContent = "Комментарий автоинструктора";
     card.appendChild(cb);
 
     const cbox = document.createElement("div");
-    cbox.className = "quiz-tip hidden";
+    cbox.className = "quiz-tip comment-text hidden";
     cbox.innerHTML = renderTip(q.comment);
     card.appendChild(cbox);
 
@@ -180,5 +188,49 @@ function showResult() {
   $("#btn-back2").addEventListener("click", () => showScreen("tickets"));
 }
 
-$("#loading-note").textContent = "Выберите билет:";
-renderTicketGrid();
+function renderTicketGrid(stats) {
+  const wrap = $("#ticket-grid");
+  wrap.innerHTML = "";
+  for (let i = 1; i <= 40; i++) {
+    const b = document.createElement("button");
+    b.className = "ticket-btn";
+    b.addEventListener("click", () => startTicket(i));
+
+    const num = document.createElement("span");
+    num.className = "ticket-num";
+    num.textContent = i;
+
+    const cnt = document.createElement("span");
+    cnt.className = "ticket-count";
+    b.append(num);
+    const c = stats[i] || 0;
+    if (c > 0) {
+      cnt.textContent = `${c} с комментарием`;
+      b.append(cnt);
+    }
+    wrap.appendChild(b);
+  }
+}
+
+async function init() {
+  tgFullscreen();
+  document.addEventListener("pointerdown", tgFullscreen, { once: true });
+  showLoading(true, "Загрузка…");
+  let stats = {};
+  try {
+    const r = await fetch(API_BASE_URL);
+    const d = await r.json();
+    if (d.ok) {
+      (d.stats || []).forEach((s) => {
+        stats[s.ticket] = s.comments;
+      });
+    }
+  } catch (e) {
+    $("#loading-note").textContent = "Ошибка загрузки: " + e.message;
+  }
+  $("#loading-note").textContent = "Выберите билет:";
+  renderTicketGrid(stats);
+  showLoading(false);
+}
+
+init();

@@ -38,7 +38,7 @@ body {
 #app { display: flex; flex-direction: column; min-height: 100dvh; }
 
 .screen { display: flex; flex-direction: column; padding: calc(env(safe-area-inset-top, 0px) + 24px) 20px 32px; flex: 1; }
-#screen-quiz { padding-top: calc(env(safe-area-inset-top, 0px) + 50px); }
+#screen-tickets, #screen-quiz { padding-top: calc(env(safe-area-inset-top, 0px) + 50px); }
 .hidden { display: none !important; }
 
 /* шапка выбора билета */

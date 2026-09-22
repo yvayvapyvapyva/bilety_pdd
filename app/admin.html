@@ -188,6 +188,13 @@ textarea {
   background: rgba(255, 255, 255, 0.04);
 }
 textarea:focus { outline: 2px solid rgba(229, 72, 95, 0.8); outline-offset: 1px; }
+.video-input {
+  width: 100%; margin-top: 8px; min-height: 44px; padding: 11px 12px; font: inherit; font-size: 14px;
+  color: var(--text);
+  border: 1px solid var(--border); border-radius: 12px; resize: vertical;
+  background: rgba(255, 255, 255, 0.04);
+}
+.video-input:focus { outline: 2px solid rgba(229, 72, 95, 0.8); outline-offset: 1px; }
 button.save {
   margin-top: 10px; padding: 10px 22px; font-size: 15px; font-weight: 700;
   border: none; border-radius: 12px;
@@ -411,7 +418,7 @@ function renderCards() {
 
     const addBtn = document.createElement("button");
     addBtn.className = "add-comment";
-    addBtn.hidden = !!q.comment;
+    addBtn.hidden = !!(q.comment || q.video);
     addBtn.textContent = "Добавить комментарий";
     addBtn.addEventListener("click", () => {
       addBtn.hidden = true;
@@ -424,10 +431,15 @@ function renderCards() {
     ta.placeholder = "Текст комментария…";
     ta.value = cleanLinks(q.comment);
 
+    const vi = document.createElement("textarea");
+    vi.className = "video-input";
+    vi.placeholder = "Ссылки на видео, по одной на строку (YouTube / TikTok / Rutube)…";
+    vi.value = q.video || "";
+
     const save = document.createElement("button");
     save.className = "save";
     save.textContent = "Сохранить";
-    save.addEventListener("click", () => saveComment(q, ta, save, card));
+    save.addEventListener("click", () => saveCard(q, ta, vi, save, card));
 
     const del = document.createElement("button");
     del.className = "del";
@@ -439,8 +451,8 @@ function renderCards() {
 
     const editor = document.createElement("div");
     editor.className = "editor";
-    editor.hidden = !q.comment;
-    editor.append(ta, save, del, st);
+    editor.hidden = !(q.comment || q.video);
+    editor.append(ta, vi, save, del, st);
     card.appendChild(editor);
 
     list.appendChild(card);
@@ -448,9 +460,11 @@ function renderCards() {
   window.scrollTo(0, 0);
 }
 
-async function saveComment(q, ta, btn, card) {
+async function saveCard(q, ta, vi, btn, card) {
   const value = cleanLinks(ta.value);
+  const video = cleanLinks(vi.value).trim();
   ta.value = value;
+  vi.value = video;
   btn.disabled = true;
   const st = card.querySelector(".status");
   st.textContent = "";
@@ -458,11 +472,12 @@ async function saveComment(q, ta, btn, card) {
     const r = await fetch(API, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ticket: ticket, n: q.n, comment: value }),
+      body: JSON.stringify({ ticket: ticket, n: q.n, comment: value, video: video }),
     });
     const d = await r.json();
     if (!r.ok || !d.ok) throw new Error((d && d.error) || "HTTP " + r.status);
     q.comment = value;
+    q.video = video || null;
     updateCard(card, q);
     st.textContent = "Сохранено";
     if (window.sendCommentReport) window.sendCommentReport(ticket, q.n, value);
@@ -500,10 +515,11 @@ async function deleteComment(q, ta, btn, card) {
 }
 
 function updateCard(card, q) {
-  card.classList.toggle("has-c", !!q.comment);
+  const hasC = !!(q.comment || q.video);
+  card.classList.toggle("has-c", hasC);
   const editor = card.querySelector(".editor");
   const addBtn = card.querySelector(".add-comment");
-  if (q.comment) {
+  if (hasC) {
     editor.hidden = false;
     addBtn.hidden = true;
   } else {

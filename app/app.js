@@ -152,6 +152,14 @@ function buildLinkBtn(l, q) {
   return b;
 }
 
+function videoUrls(v) {
+  if (!v) return [];
+  return String(v)
+    .split(/[\n,;]+/)
+    .map((s) => s.trim())
+    .filter((s) => /^https?:\/\//i.test(s));
+}
+
 function buildCard(q) {
   const card = document.createElement("div");
   card.className = "qcard";
@@ -189,26 +197,29 @@ function buildCard(q) {
   card.appendChild(ansBox);
   card.appendChild(tip);
 
-  if (q.comment) {
-    const parsed = parseLinks(q.comment);
-
+  const vids = videoUrls(q.video);
+  const hasComment = !!q.comment;
+  if (hasComment || vids.length) {
     const cb = document.createElement("button");
     cb.className = "comment-btn";
-    cb.textContent = parsed.links.length
-      ? "Комментарий автоинструктора (есть видео)"
-      : "Комментарий автоинструктора";
+    cb.textContent = hasComment
+      ? (vids.length ? "Комментарий автоинструктора (есть видео)" : "Комментарий автоинструктора")
+      : "Видео";
     card.appendChild(cb);
 
     const cbox = document.createElement("div");
-    cbox.className = "quiz-tip comment-text hidden";
-    const body = document.createElement("div");
-    body.className = "comment-body";
-    body.innerHTML = renderTip(parsed.text);
-    cbox.appendChild(body);
-    if (parsed.links.length) {
+    cbox.className = "quiz-tip comment-text" + (hasComment ? " hidden" : "");
+    if (hasComment) {
+      const parsed = parseLinks(q.comment);
+      const body = document.createElement("div");
+      body.className = "comment-body";
+      body.innerHTML = renderTip(parsed.text);
+      cbox.appendChild(body);
+    }
+    if (vids.length) {
       const wrap = document.createElement("div");
       wrap.className = "comlinks";
-      parsed.links.forEach((l) => wrap.appendChild(buildLinkBtn(l, q)));
+      vids.forEach((url) => wrap.appendChild(buildLinkBtn({ url }, q)));
       cbox.appendChild(wrap);
     }
     card.appendChild(cbox);

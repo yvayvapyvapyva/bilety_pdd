@@ -40,7 +40,7 @@ def _pool():
     return _POOL
 
 
-def _ensure_comment():
+def _ensure_schema():
     global _MIGRATED
     if _MIGRATED:
         return
@@ -50,6 +50,8 @@ def _ensure_comment():
         cols = {c.name for c in getattr(desc, "columns", [])}
         if "comment" not in cols:
             session.execute_scheme(f"ALTER TABLE `{TABLE_PATH}` ADD COLUMN comment Utf8;")
+        if "video" not in cols:
+            session.execute_scheme(f"ALTER TABLE `{TABLE_PATH}` ADD COLUMN video Utf8;")
 
     _pool().retry_operation_sync(run)
     _MIGRATED = True
@@ -59,7 +61,8 @@ def _select_ticket(ticket: int):
     def run(session):
         query = session.prepare(
             "DECLARE $ticket AS Int32; "
-            "SELECT ticket_number, question_number, data, image, comment FROM `bilety` "
+            "SELECT ticket_number, question_number, data, image, comment, video "
+            "FROM `bilety` "
             "WHERE ticket_number = $ticket "
             "ORDER BY ticket_number, question_number;"
         )
@@ -70,18 +73,19 @@ def _select_ticket(ticket: int):
     return _pool().retry_operation_sync(run)
 
 
-def _update_comment(ticket: int, number: int, comment):
+def _update_fields(ticket: int, number: int, comment, video):
     def run(session):
         query = session.prepare(
             "DECLARE $ticket AS Int32; "
             "DECLARE $number AS Int32; "
             "DECLARE $comment AS Utf8; "
-            "UPDATE `bilety` SET comment = $comment "
+            "DECLARE $video AS Utf8; "
+            "UPDATE `bilety` SET comment = $comment, video = $video "
             "WHERE ticket_number = $ticket AND question_number = $number;"
         )
         session.transaction().execute(
             query,
-            parameters={"$ticket": ticket, "$number": number, "$comment": comment},
+            parameters={"$ticket": ticket, "$number": number, "$comment": comment, "$video": video},
             commit_tx=True,
         )
     _pool().retry_operation_sync(run)
@@ -92,7 +96,7 @@ def _stats():
         query = session.prepare(
             "SELECT ticket_number, "
             "SUM(IF(comment IS NOT NULL AND comment != '', 1, 0)) AS comments, "
-            "SUM(IF(comment LIKE '%://%', 1, 0)) AS videos "
+            "SUM(IF(video IS NOT NULL AND video != '', 1, 0)) AS videos "
             "FROM `bilety` GROUP BY ticket_number ORDER BY ticket_number;"
         )
         rs = session.transaction().execute(query, commit_tx=True)
@@ -123,12 +127,14 @@ def _ticket_payload(ticket: int):
     for row in rows:
         img = row.get("image")
         cm = row.get("comment")
+        vd = row.get("video")
         questions.append(
             {
                 "n": row["question_number"],
                 "data": json.loads(row["data"]),
                 "image": base64.b64encode(img).decode("ascii") if img else None,
                 "comment": cm or None,
+                "video": vd or None,
             }
         )
     return {"ok": True, "ticket": ticket, "questions": questions}
@@ -143,7 +149,7 @@ def _int_or_none(value, name):
 
 def handler(event, context):
     try:
-        _ensure_comment()
+        _ensure_schema()
         method = (event.get("httpMethod") or event.get("method") or "GET").upper()
         if method == "OPTIONS":
             return _response(200, {"ok": True})
@@ -162,10 +168,11 @@ def handler(event, context):
             ticket = _int_or_none(body.get("ticket"), "ticket")
             number = _int_or_none(body.get("n"), "n")
             comment = body.get("comment")
-            if comment is None:
-                raise ValueError("Поле 'comment' обязательно")
-            _update_comment(ticket, number, str(comment))
-            return _response(200, {"ok": True, "ticket": ticket, "n": number, "comment": comment})
+            video = body.get("video")
+            if comment is None and video is None:
+                raise ValueError("Нет данных для сохранения")
+            _update_fields(ticket, number, str(comment or ""), str(video or ""))
+            return _response(200, {"ok": True, "ticket": ticket, "n": number})
 
         if method != "GET":
             return _response(405, {"ok": False, "error": "Метод не поддерживается"})

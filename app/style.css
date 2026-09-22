@@ -249,7 +249,7 @@ body {
 .comlink.tiktok { background: #14161c; }
 .comlink.tiktok .comlink-play { color: #25f4ee; }
 .comlink.rutube { background: #d61a1f; }
-.comlink.link {
+.comlink.video, .comlink.link {
   color: var(--text);
   background: var(--card);
   border-color: var(--border);

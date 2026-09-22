@@ -103,7 +103,7 @@ function linkInfo(url) {
     return { kind: "tiktok", name: "TikTok" };
   if (u.includes("rutube.ru"))
     return { kind: "rutube", name: "Rutube" };
-  return { kind: "link", name: "Ссылка" };
+  return { kind: "video", name: "Видео" };
 }
 
 function parseLinks(text) {
